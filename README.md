@@ -15,13 +15,13 @@ To build the app:
 
 ## Run
 
-By default, the app reads data from `example_file.csv` in the current directory.
+To run the app:
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-To use a different data file:
+By default, the app reads data from `data/example_file.csv`. To use a different data file:
 
 ```bash
 ./mvnw spring-boot:run -Dspring-boot.run.arguments="--temperature.data.file=/path/to/file.csv"

@@ -4,6 +4,7 @@ import static com.github.vsg.kyotu.temperature.util.TestUtils.resourceFile;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.nio.file.Path;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,7 @@ class TemperatureDataLoaderTest {
     
     @Test
     void shouldLoadExampleData() throws Exception {
-        Map<String, Map<Integer, Double>> data = dataLoader.loadCityYearAverages(resourceFile("example_file.csv"));
+        Map<String, Map<Integer, Double>> data = dataLoader.loadCityYearAverages(Path.of("data/example_file.csv"));
         
         assertThat(data.get("Warszawa").get(2018)).isEqualTo(13.524711538461535);
         assertThat(data.get("Kraków").get(2018)).isEqualTo(14.077788461538459);
