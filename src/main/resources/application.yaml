@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: kyotu-large-file-reading-challenge
+  mvc:
+    problemdetails:
+      enabled: true
+
+temperature:
+  data:
+    file: example_file.csv
+    reload-interval-ms: 3000
