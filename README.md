@@ -5,8 +5,6 @@ Solution for the [Large File Reading Challenge](https://github.com/Kyotu-Technol
 The application exposes a REST endpoint that returns yearly average temperatures for a given city, parsed from a CSV file that can be 3GB+.
 The source file may change while the application is running, and the endpoint should reflect the current data.
 
-A less overengineered version can be found on [a different branch](https://github.com/vsg/large-file-reading-challenge/tree/simple).
-
 ## Build
 
 To build the app:
@@ -42,3 +40,4 @@ curl "http://localhost:8080/temperature/{city}"
 - After optimizations, a 3GB file is loaded in about 1.5 seconds.
 - The file is parsed using parallel processing of memory-mapped file blocks.
 - Temperature values are parsed using a custom double parser to avoid the overhead of `Double.parseDouble()`.
+- A less overengineered version can be found on [a different branch](https://github.com/vsg/large-file-reading-challenge/tree/simple).
