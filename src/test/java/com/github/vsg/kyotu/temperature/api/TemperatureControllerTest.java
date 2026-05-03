@@ -5,6 +5,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,12 +18,9 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
-import com.github.vsg.kyotu.temperature.api.dto.YearlyAverageDto;
-import com.github.vsg.kyotu.temperature.domain.YearlyAverage;
-import com.github.vsg.kyotu.temperature.exception.CityNotFoundException;
-import com.github.vsg.kyotu.temperature.service.TemperatureService;
-import com.github.vsg.kyotu.temperature.storage.exception.DataNotAvailableException;
-import com.github.vsg.kyotu.temperature.storage.exception.InvalidDataFormatException;
+import com.github.vsg.kyotu.temperature.TemperatureApplication.YearlyAverageDto;
+import com.github.vsg.kyotu.temperature.TemperatureDataLoader;
+import com.github.vsg.kyotu.temperature.exception.InvalidDataFormatException;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureRestTestClient 
@@ -31,14 +30,13 @@ class TemperatureControllerTest {
     RestTestClient restTestClient;
     
     @MockitoBean
-    TemperatureService temperatureService;
+    TemperatureDataLoader dataLoader;
 
     @Test
     void shouldReturnTemperatures() throws Exception {
-        var average1 = new YearlyAverage(2024, 11.1);
-        var average2 = new YearlyAverage(2025, 12.2);
+        Map<String, Map<String, Double>> data = Map.of("Warszawa", Map.of("2024", 11.1, "2025", 12.2));
         
-        when(temperatureService.getYearlyAverages("Warszawa")).thenReturn(List.of(average1, average2));
+        when(dataLoader.loadCityYearAverages(any())).thenReturn(data);
         
         restTestClient.get()
                 .uri("/temperature/Warszawa")
@@ -52,9 +50,9 @@ class TemperatureControllerTest {
     
     @Test
     void shouldReturnTemperaturesRounded() throws Exception {
-        var average = new YearlyAverage(2025, 12.1234);
+        Map<String, Map<String, Double>> data = Map.of("Warszawa", Map.of("2025", 12.1234));
         
-        when(temperatureService.getYearlyAverages("Warszawa")).thenReturn(List.of(average));
+        when(dataLoader.loadCityYearAverages(any())).thenReturn(data);
         
         restTestClient.get()
                 .uri("/temperature/Warszawa")
@@ -66,30 +64,38 @@ class TemperatureControllerTest {
     }
     
     @Test
+    void shouldReturnTemperaturesSorted() throws Exception {
+        Map<String, Map<String, Double>> data = Map.of("Warszawa", treeMapOf("2025", 12.2, "2024", 11.1));
+        
+        when(dataLoader.loadCityYearAverages(any())).thenReturn(data);
+        
+        restTestClient.get()
+                .uri("/temperature/Warszawa")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(new ParameterizedTypeReference<List<YearlyAverageDto>>() {})
+                .isEqualTo(List.of(
+                        new YearlyAverageDto("2024", 11.1),
+                        new YearlyAverageDto("2025", 12.2)));
+    }
+    
+    @Test
     void shouldHandleCityNotFound() throws Exception {
-        when(temperatureService.getYearlyAverages("Warszawa")).thenThrow(new CityNotFoundException("Warszawa"));
+        Map<String, Map<String, Double>> data = Map.of();
+        
+        when(dataLoader.loadCityYearAverages(any())).thenReturn(data);
         
         restTestClient.get()
                 .uri("/temperature/Warszawa")
                 .exchange()
                 .expectStatus().isNotFound()
                 .expectBody(ProblemDetail.class)
-                .value(pd -> assertThat(pd.getDetail()).isEqualTo("City 'Warszawa' not found"));
-    }
-    
-    @Test
-    void shouldHandleDataNotAvailable() throws Exception {
-        when(temperatureService.getYearlyAverages(any())).thenThrow(new DataNotAvailableException("Data not available"));
-        
-        restTestClient.get()
-                .uri("/temperature/Warszawa")
-                .exchange()
-                .expectStatus().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+                .value(pd -> assertThat(pd.getDetail()).isEqualTo("City not found: Warszawa"));
     }
     
     @Test
     void shouldHandleInvalidDataFormat() throws Exception {
-        when(temperatureService.getYearlyAverages(any())).thenThrow(new InvalidDataFormatException("Invalid data format"));
+        when(dataLoader.loadCityYearAverages(any())).thenThrow(new InvalidDataFormatException("Invalid data format", null));
         
         restTestClient.get()
                 .uri("/temperature/Warszawa")
@@ -99,7 +105,7 @@ class TemperatureControllerTest {
     
     @Test
     void shouldHandleUnexpectedError() throws Exception {
-        when(temperatureService.getYearlyAverages(any())).thenThrow(new RuntimeException());
+        when(dataLoader.loadCityYearAverages(any())).thenThrow(new RuntimeException());
         
         restTestClient.get()
                 .uri("/temperature/Warszawa")
@@ -107,4 +113,13 @@ class TemperatureControllerTest {
                 .expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     }
     
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    private static <K, V> TreeMap<K, V> treeMapOf(Object... args) {
+        TreeMap result = new TreeMap();
+        for (int i = 0; i < args.length; i += 2) {
+            result.put(args[i], args[i+1]);
+        }
+        return result;
+    }
 }

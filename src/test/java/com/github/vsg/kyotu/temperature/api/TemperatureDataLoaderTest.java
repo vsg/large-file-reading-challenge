@@ -1,6 +1,5 @@
-package com.github.vsg.kyotu.temperature.storage;
+package com.github.vsg.kyotu.temperature.api;
 
-import static com.github.vsg.kyotu.temperature.util.TestUtils.resourceFile;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -11,7 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import com.github.vsg.kyotu.temperature.storage.exception.InvalidDataFormatException;
+import com.github.vsg.kyotu.temperature.TemperatureDataLoader;
+import com.github.vsg.kyotu.temperature.exception.InvalidDataFormatException;
 
 class TemperatureDataLoaderTest {
 
@@ -19,19 +19,19 @@ class TemperatureDataLoaderTest {
     
     @Test
     void shouldLoadExampleData() throws Exception {
-        Map<String, Map<Integer, Double>> data = dataLoader.loadCityYearAverages(Path.of("data/example_file.csv"));
+        var data = dataLoader.loadCityYearAverages(Path.of("data/example_file.csv"));
         
-        assertThat(data.get("Warszawa").get(2018)).isEqualTo(13.524711538461535);
-        assertThat(data.get("Kraków").get(2018)).isEqualTo(14.077788461538459);
+        assertThat(data.get("Warszawa").get("2018")).isEqualTo(13.524711538461535);
+        assertThat(data.get("Kraków").get("2018")).isEqualTo(14.077788461538459);
     }
     
     @Test
     void shouldCalculateAverageByYear() throws Exception {
-        Map<String, Map<Integer, Double>> data = dataLoader.loadCityYearAverages(resourceFile("simple.csv"));
+        var data = dataLoader.loadCityYearAverages(resourceFile("simple.csv"));
         
         assertThat(data).isEqualTo(Map.of(
-                "Warszawa", Map.of(2018, 9.97, 2019, 1.45),
-                "Kraków", Map.of(2018, 33.435, 2019, 30.67)));
+                "Warszawa", Map.of("2018", 9.97, "2019", 1.45),
+                "Kraków", Map.of("2018", 33.435, "2019", 30.67)));
     }
     
     @Test
@@ -44,10 +44,18 @@ class TemperatureDataLoaderTest {
     @ParameterizedTest
     @ValueSource(strings = {"windows-eol.csv", "mac-eol.csv", "unix-eol.csv"})
     void shouldLoadDifferentEol(String dataPath) throws Exception {
-        Map<String, Map<Integer, Double>> data = dataLoader.loadCityYearAverages(resourceFile(dataPath));
+        var data = dataLoader.loadCityYearAverages(resourceFile(dataPath));
         
-        assertThat(data.get("Warszawa").get(2018)).isEqualTo(9.97);
-        assertThat(data.get("Kraków").get(2018)).isEqualTo(37.21);
+        assertThat(data.get("Warszawa").get("2018")).isEqualTo(9.97);
+        assertThat(data.get("Kraków").get("2018")).isEqualTo(37.21);
+    }
+    
+    private Path resourceFile(String fileName) {
+        try {
+            return Path.of(getClass().getClassLoader().getResource(fileName).toURI());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
     
 }

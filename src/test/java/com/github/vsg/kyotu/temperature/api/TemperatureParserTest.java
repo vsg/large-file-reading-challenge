@@ -1,9 +1,11 @@
-package com.github.vsg.kyotu.temperature.storage;
+package com.github.vsg.kyotu.temperature.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
+
+import com.github.vsg.kyotu.temperature.TemperatureParser;
 
 class TemperatureParserTest {
 

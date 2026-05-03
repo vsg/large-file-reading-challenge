@@ -1,4 +1,4 @@
-package com.github.vsg.kyotu.temperature.storage;
+package com.github.vsg.kyotu.temperature;
 
 import java.util.Arrays;
 

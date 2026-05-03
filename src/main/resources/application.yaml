@@ -8,4 +8,3 @@ spring:
 temperature:
   data:
     file: data/example_file.csv
-    reload-interval-ms: 3000

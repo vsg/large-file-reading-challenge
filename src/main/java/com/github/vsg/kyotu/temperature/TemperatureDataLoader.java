@@ -1,21 +1,22 @@
-package com.github.vsg.kyotu.temperature.storage;
+package com.github.vsg.kyotu.temperature;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel.MapMode;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
-import com.github.vsg.kyotu.temperature.storage.exception.InvalidDataFormatException;
+import com.github.vsg.kyotu.temperature.exception.InvalidDataFormatException;
 
 @Component
 public class TemperatureDataLoader {
@@ -56,28 +57,13 @@ public class TemperatureDataLoader {
             if (this.hashCode != other.hashCode) return false;
             return Arrays.equals(this.array, this.begin, this.end, other.array, other.begin, other.end);
         }
-
-        @Override
-        public String toString() {
-            return new String(array, begin, end-begin);
-        }
         
     }
     
-    // a simpler alternative to DoubleSummaryStatistics
     private static class SumAndCount {
 
         private double sum;
         private int count;
-        
-        public SumAndCount(double sum, int count) {
-            this.sum = sum;
-            this.count = count;
-        } 
-        
-        public static SumAndCount combine(SumAndCount a, SumAndCount b) {
-            return new SumAndCount(a.sum + b.sum, a.count + b.count);
-        }
         
         public void add(double value) {
             sum += value;
@@ -87,28 +73,58 @@ public class TemperatureDataLoader {
         public double average() {
             return (count > 0) ? sum / count : 0;
         }
+        
+        public static SumAndCount combine(SumAndCount a, SumAndCount b) {
+            SumAndCount result = new SumAndCount();
+            result.sum = a.sum + b.sum;
+            result.count = a.count + b.count;
+            return result;
+        }
+        
+        public static void accumulate(SumAndCount acc, SumAndCount x) {
+            acc.sum += x.sum;
+            acc.count += x.count;
+        }
 
+        public static <T> Collector<SumAndCount, SumAndCount, T> collectingAndThen(
+                Function<SumAndCount, T> finisher) {
+            return Collector.of(
+                    SumAndCount::new, 
+                    SumAndCount::accumulate, 
+                    SumAndCount::combine, 
+                    finisher);
+        }
+        
+    }
+    
+    private static record CityYear(String city, String year) {
+        
+        public CityYear(Chunk chunk) {
+            int pos = chunk.begin;
+            while (chunk.array[pos] != ';') pos++;
+            
+            String city = new String(chunk.array, chunk.begin, pos - chunk.begin);
+            String year = new String(chunk.array, pos + 1, chunk.end - pos - 1);
+            
+            this(city, year);
+        }
+        
     }
     
     private static final int BLOCK_SIZE = 10_000_000;
 
-    public Map<String, Map<Integer, Double>> loadCityYearAverages(Path path) throws IOException {
+    public Map<String, Map<String, Double>> loadCityYearAverages(Path path) throws IOException {
         try (RandomAccessFile file = new RandomAccessFile(path.toFile(), "r")) {
-            Map<String, SumAndCount> summaries = blocks(file, BLOCK_SIZE).stream().parallel()
+            return blocks(file, BLOCK_SIZE).stream().parallel()
                     .flatMap(block -> processBlock(block).entrySet().stream())
-                    .collect(Collectors.toConcurrentMap(
-                            Map.Entry::getKey,
-                            Map.Entry::getValue,
-                            SumAndCount::combine));
-
-            // Parsing of city and year is delayed until "city;year" strings are deduplicated
-            
-            return summaries.entrySet().stream().parallel()
                     .collect(Collectors.groupingByConcurrent(
-                            entry -> parseCity(entry.getKey()),
-                            Collectors.toMap(
-                                    entry -> parseYear(entry.getKey()),
-                                    entry -> entry.getValue().average())));
+                            e -> e.getKey().city(),
+                            Collectors.groupingBy(
+                                    e -> e.getKey().year(),
+                                    Collectors.mapping(
+                                            e -> e.getValue(),
+                                            SumAndCount.collectingAndThen(
+                                                  SumAndCount::average)))));
         }
     }
 
@@ -131,7 +147,7 @@ public class TemperatureDataLoader {
         return result;
     }
 
-    private Map<String, SumAndCount> processBlock(MappedByteBuffer block) {
+    private Map<CityYear, SumAndCount> processBlock(MappedByteBuffer block) {
         int length = block.remaining();
         byte[] array = new byte[length];
         block.get(array);
@@ -156,33 +172,17 @@ public class TemperatureDataLoader {
                 while (pos < length && array[pos] != '\r' && array[pos] != '\n') pos++;
                 double temperature = TemperatureParser.parse(array, beginTemperature, pos);
                 while (pos < length && (array[pos] == '\r' || array[pos] == '\n')) pos++;
-
-                summary.computeIfAbsent(cityYear, k -> new SumAndCount(0, 0)).add(temperature);
+    
+                summary.computeIfAbsent(cityYear, k -> new SumAndCount()).add(temperature);
             }
         } catch (ArrayIndexOutOfBoundsException e) {
-            throw new InvalidDataFormatException("Block parsing failed", e);
+            throw new InvalidDataFormatException("Failed to parse data block", e);
         }
         
         return summary.entrySet().stream()
                 .collect(Collectors.toMap(
-                        entry -> entry.getKey().toString(), 
-                        entry -> entry.getValue()));
-    }
-
-    private static String parseCity(String cityYear) {
-        return cityYear.substring(0, cityYear.lastIndexOf(';'));
-    }
-
-    private static Integer parseYear(String cityYear) {
-        return Integer.parseInt(cityYear.substring(cityYear.lastIndexOf(';') + 1));
-    }
-    
-    public static void main(String[] args) throws Exception {
-        Path path = Paths.get(args[0]);
-        long begin = System.currentTimeMillis();
-        new TemperatureDataLoader().loadCityYearAverages(path);
-        long end = System.currentTimeMillis();
-        System.out.println(String.format("%d ms", end-begin));
+                        e -> new CityYear(e.getKey()), 
+                        e -> e.getValue()));
     }
     
 }
