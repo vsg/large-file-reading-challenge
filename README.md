@@ -5,6 +5,8 @@ Solution for the [Large File Reading Challenge](https://github.com/Kyotu-Technol
 The application exposes a REST endpoint that returns yearly average temperatures for a given city, parsed from a CSV file that can be 3GB+.
 The source file may change while the application is running, and the endpoint should reflect the current data.
 
+A less overengineered version can be found on [a different branch](https://github.com/vsg/large-file-reading-challenge/tree/simple).
+
 ## Build
 
 To build the app:
