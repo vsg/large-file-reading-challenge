@@ -8,12 +8,13 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.test.web.servlet.client.RestTestClient;
 
 import com.github.vsg.kyotu.temperature.api.dto.YearlyAverageDto;
 import com.github.vsg.kyotu.temperature.domain.YearlyAverage;
@@ -23,15 +24,15 @@ import com.github.vsg.kyotu.temperature.storage.exception.DataNotAvailableExcept
 import com.github.vsg.kyotu.temperature.storage.exception.InvalidDataFormatException;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureWebTestClient 
+@AutoConfigureRestTestClient 
 class TemperatureControllerTest {
 
     @Autowired
-    WebTestClient webTestClient;
-
+    RestTestClient restTestClient;
+    
     @MockitoBean
     TemperatureService temperatureService;
-    
+
     @Test
     void shouldReturnTemperatures() throws Exception {
         var average1 = new YearlyAverage(2024, 11.1);
@@ -39,11 +40,11 @@ class TemperatureControllerTest {
         
         when(temperatureService.getYearlyAverages("Warszawa")).thenReturn(List.of(average1, average2));
         
-        webTestClient.get()
+        restTestClient.get()
                 .uri("/temperature/Warszawa")
                 .exchange()
                 .expectStatus().isOk()
-                .expectBodyList(YearlyAverageDto.class)
+                .expectBody(new ParameterizedTypeReference<List<YearlyAverageDto>>() {})
                 .isEqualTo(List.of(
                         new YearlyAverageDto("2024", 11.1),
                         new YearlyAverageDto("2025", 12.2)));
@@ -55,19 +56,20 @@ class TemperatureControllerTest {
         
         when(temperatureService.getYearlyAverages("Warszawa")).thenReturn(List.of(average));
         
-        webTestClient.get()
+        restTestClient.get()
                 .uri("/temperature/Warszawa")
                 .exchange()
                 .expectStatus().isOk()
-                .expectBodyList(YearlyAverageDto.class)
-                .isEqualTo(List.of(new YearlyAverageDto("2025", 12.1)));
+                .expectBody(new ParameterizedTypeReference<List<YearlyAverageDto>>() {})
+                .isEqualTo(List.of(
+                        new YearlyAverageDto("2025", 12.1)));
     }
     
     @Test
     void shouldHandleCityNotFound() throws Exception {
         when(temperatureService.getYearlyAverages("Warszawa")).thenThrow(new CityNotFoundException("Warszawa"));
         
-        webTestClient.get()
+        restTestClient.get()
                 .uri("/temperature/Warszawa")
                 .exchange()
                 .expectStatus().isNotFound()
@@ -79,7 +81,7 @@ class TemperatureControllerTest {
     void shouldHandleDataNotAvailable() throws Exception {
         when(temperatureService.getYearlyAverages(any())).thenThrow(new DataNotAvailableException("Data not available"));
         
-        webTestClient.get()
+        restTestClient.get()
                 .uri("/temperature/Warszawa")
                 .exchange()
                 .expectStatus().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
@@ -89,7 +91,7 @@ class TemperatureControllerTest {
     void shouldHandleInvalidDataFormat() throws Exception {
         when(temperatureService.getYearlyAverages(any())).thenThrow(new InvalidDataFormatException("Invalid data format"));
         
-        webTestClient.get()
+        restTestClient.get()
                 .uri("/temperature/Warszawa")
                 .exchange()
                 .expectStatus().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
@@ -99,7 +101,7 @@ class TemperatureControllerTest {
     void shouldHandleUnexpectedError() throws Exception {
         when(temperatureService.getYearlyAverages(any())).thenThrow(new RuntimeException());
         
-        webTestClient.get()
+        restTestClient.get()
                 .uri("/temperature/Warszawa")
                 .exchange()
                 .expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
