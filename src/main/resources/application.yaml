@@ -1,9 +1,6 @@
 spring:
   application:
     name: kyotu-large-file-reading-challenge
-  mvc:
-    problemdetails:
-      enabled: true
 
 temperature:
   data:

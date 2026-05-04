@@ -84,7 +84,9 @@ class TemperatureControllerTest {
         restTestClient.get()
                 .uri("/temperature/Warszawa")
                 .exchange()
-                .expectStatus().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+                .expectStatus().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE)
+                .expectBody(ProblemDetail.class)
+                .value(pd -> assertThat(pd.getDetail()).isNotBlank());
     }
     
     @Test
@@ -94,7 +96,19 @@ class TemperatureControllerTest {
         restTestClient.get()
                 .uri("/temperature/Warszawa")
                 .exchange()
-                .expectStatus().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+                .expectStatus().isEqualTo(HttpStatus.SERVICE_UNAVAILABLE)
+                .expectBody(ProblemDetail.class)
+                .value(pd -> assertThat(pd.getDetail()).isNotBlank());
+    }
+    
+    @Test
+    void shouldHandleHttpNotFound() throws Exception {
+        restTestClient.get()
+                .uri("/noexistent/path")
+                .exchange()
+                .expectStatus().isNotFound()
+                .expectBody(ProblemDetail.class)
+                .value(pd -> assertThat(pd.getDetail()).isNotBlank());
     }
     
     @Test
@@ -104,7 +118,9 @@ class TemperatureControllerTest {
         restTestClient.get()
                 .uri("/temperature/Warszawa")
                 .exchange()
-                .expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+                .expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR)
+                .expectBody(ProblemDetail.class)
+                .value(pd -> assertThat(pd.getDetail()).isNotBlank());
     }
     
 }
