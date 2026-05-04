@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.github.vsg.kyotu.temperature.exception.CityNotFoundException;
 import com.github.vsg.kyotu.temperature.exception.InvalidDataFormatException;
@@ -59,12 +58,12 @@ public class TemperatureApplication {
                 .toList();
     }
 
-    @ExceptionHandler({CityNotFoundException.class, NoResourceFoundException.class})
+    @ExceptionHandler(CityNotFoundException.class)
     public ProblemDetail handleNotFound(Exception ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
-    @ExceptionHandler({InvalidDataFormatException.class, IOException.class})
+    @ExceptionHandler(InvalidDataFormatException.class)
     public ProblemDetail handleUnavailable(Exception ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, "Temporarily unavailable");
     }
