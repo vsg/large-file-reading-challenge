@@ -23,8 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.github.vsg.kyotu.temperature.exception.CityNotFoundException;
 import com.github.vsg.kyotu.temperature.exception.InvalidDataFormatException;
 
-@RestController
 @SpringBootApplication
+@RestController
 public class TemperatureApplication {
 
     private static final Logger log = LoggerFactory.getLogger(TemperatureApplication.class);
@@ -75,7 +75,7 @@ public class TemperatureApplication {
     }
 
     public static void main(String[] args) {
-		SpringApplication.run(TemperatureApplication.class, args);
-	}
-	
+        SpringApplication.run(TemperatureApplication.class, args);
+    }
+    
 }
