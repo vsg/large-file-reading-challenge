@@ -8,8 +8,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class TemperatureApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(TemperatureApplication.class, args);
-	}
-	
+    public static void main(String[] args) {
+        SpringApplication.run(TemperatureApplication.class, args);
+    }
+    
 }
